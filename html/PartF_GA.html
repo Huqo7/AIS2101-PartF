@@ -1,0 +1,680 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<META http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      -->
+<title>PartF_GA</title>
+<meta name="generator" content="MATLAB 24.1">
+<link rel="schema.DC" href="http://purl.org/dc/elements/1.1/">
+<meta name="DC.date" content="2024-05-07">
+<meta name="DC.source" content="PartF_GA.m">
+<style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img, h1 img, h2 img { margin-bottom:0px; }
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, code { font-size:12px; }
+tt { font-size: 1.2em; }
+pre { margin:0px 0px 20px; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+pre.error { color:red; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+span.typesection { color:#A0522D }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style>
+</head>
+<body>
+<div class="content">
+<pre class="codeinput">Data = readtable(<span class="string">"airfoilSelfNoise/airfoil_self_noise.dat"</span>);
+
+TF = ismissing(Data);
+
+cv = cvpartition(size(Data, 1), <span class="string">'HoldOut'</span>,0.3);
+i = cv.test;
+
+DataTrain = Data(~i,:);
+DataTest = Data(i,:);
+
+Output = DataTrain.Var6;
+Input = table(DataTrain.Var1,DataTrain.Var2,DataTrain.Var3,DataTrain.Var4,DataTrain.Var5);
+
+fis = genfis(Input{:,:},Output)
+
+rng(<span class="string">'default'</span>)
+
+[in, out, rule] = getTunableSettings(fis);
+opt = tunefisOptions; <span class="comment">% Default values = (GA);</span>
+opt.UseParallel = true;
+opt.KFoldValue = 2;
+opt.ValidationWindowSize = 2;
+opt.ValidationTolerance = 0.02;
+opt.MethodOptions.MaxGenerations = 200;
+
+fisOut = tunefis(fis, [in;out], Input{:,:}, Output, opt);
+
+TestInput = table(DataTest.Var1,DataTest.Var2,DataTest.Var3,DataTest.Var4,DataTest.Var5);
+TestOutput = DataTest.Var6;
+
+TunedOut = evalfis(fisOut, TestInput{:,:})
+
+fig1 = figure(1);
+plot([TestOutput, TunedOut])
+legend(<span class="string">"Expected output"</span>, <span class="string">"Tuned Output"</span>)
+</pre>
+<pre class="codeoutput">
+fis = 
+
+  sugfis with properties:
+
+                       Name: "fis"
+                  AndMethod: "prod"
+                   OrMethod: "max"
+          ImplicationMethod: "prod"
+          AggregationMethod: "sum"
+      DefuzzificationMethod: "wtaver"
+    DisableStructuralChecks: 0
+                     Inputs: [1&times;5 fisvar]
+                    Outputs: [1&times;1 fisvar]
+                      Rules: [1&times;32 fisrule]
+
+	See 'getTunableSettings' method for parameter optimization.
+
+
+Single objective optimization:
+222 Variables
+
+Options:
+CreationFcn:       @gacreationuniform
+CrossoverFcn:      @crossoverscattered
+SelectionFcn:      @selectionstochunif
+MutationFcn:       @mutationadaptfeasible
+Starting parallel pool (parpool) using the 'Processes' profile ...
+Connected to parallel pool with 6 workers.
+
+                                  Best           Mean      Stall
+Generation      Func-count        f(x)           f(x)    Generations
+    1              400           125.3       2.285e+05        0
+    2              590           117.9       1.901e+05        0
+    3              780           7.621       1.488e+05        0
+ga stopped by the output or plot function. The reason for stopping: 
+Validation tolerance exceeded.
+
+Cross validation iteration 1: Minimum validation cost 116.814822 found at training cost 117.940215
+
+Single objective optimization:
+222 Variables
+
+Options:
+CreationFcn:       @gacreationuniform
+CrossoverFcn:      @crossoverscattered
+SelectionFcn:      @selectionstochunif
+MutationFcn:       @mutationadaptfeasible
+
+                                  Best           Mean      Stall
+Generation      Func-count        f(x)           f(x)    Generations
+    1              400           116.8             Inf        0
+    2              590           116.7             Inf        0
+    3              780           103.1        8.36e+04        0
+    4              970           102.9       5.286e+04        0
+    5             1160           79.71       3.431e+04        0
+    6             1350           78.71        2.05e+04        0
+    7             1540           75.39            9958        0
+    8             1730           74.08            6396        0
+    9             1920           73.76            3253        0
+ga stopped by the output or plot function. The reason for stopping: 
+Validation tolerance exceeded.
+
+Cross validation iteration 2: Minimum validation cost 73.481335 found at training cost 74.075595
+
+TunedOut =
+
+   90.9871
+   88.7687
+   85.2406
+   30.2042
+   53.2980
+   53.2188
+   53.1219
+   52.8049
+   52.2415
+   35.2693
+   11.8101
+   11.1863
+   10.6940
+    5.1680
+    5.1697
+    5.1771
+    5.1848
+    5.1912
+    5.2538
+  109.5860
+  109.1878
+  108.0069
+  106.9800
+   52.3871
+   17.0941
+   16.8996
+   16.7913
+   15.8648
+  134.7116
+  132.9036
+  132.0918
+  120.4813
+  109.2505
+   79.2239
+   22.9006
+   22.8860
+   22.7025
+   22.0930
+   21.6952
+   14.1765
+   14.1704
+   13.2037
+  156.1404
+  156.0380
+  155.5307
+  145.9297
+  139.7541
+   26.9491
+   26.8976
+   26.8207
+   26.7252
+   25.5941
+   87.7122
+   26.1444
+   52.1833
+   51.7579
+   51.5543
+   51.2718
+   50.8493
+   49.1437
+   12.0813
+   12.1156
+   12.1756
+   12.3491
+    5.6520
+    5.6889
+    6.2894
+  115.3458
+   72.6107
+   69.5683
+   28.3544
+   28.2518
+   28.1980
+   21.4868
+   21.3894
+  153.5724
+  153.1825
+  143.4439
+  124.3735
+   48.5298
+   97.4134
+   91.7938
+   87.9276
+   80.0236
+   44.3165
+   40.7386
+   36.6142
+   36.5739
+   36.2990
+   35.7744
+  187.0018
+  183.4894
+  181.8608
+  179.2661
+   54.2308
+   53.5141
+   51.7801
+  255.5457
+  253.7624
+  246.5651
+  160.5000
+  160.1902
+  158.5715
+  157.8447
+  155.0244
+  152.3678
+   68.7069
+   68.6860
+   66.2108
+   54.9475
+   54.8814
+   54.3393
+   54.0662
+   52.0084
+   50.1604
+   95.9685
+   59.9729
+   59.8659
+   59.7887
+   59.3312
+   58.5598
+   56.4876
+   53.7369
+   39.1027
+   17.0636
+   21.4346
+    9.1061
+    9.1957
+    9.3053
+    9.9306
+   10.3008
+   15.5956
+   20.7172
+  134.7828
+  131.4022
+  128.2179
+  110.2693
+   84.6566
+   84.6047
+   84.5348
+   84.4492
+   84.1691
+   83.6715
+   82.5493
+  185.7259
+  185.0844
+  183.9294
+  180.0925
+  158.3727
+  155.7608
+  151.9920
+  148.4420
+  141.8694
+  128.4323
+  144.4221
+  143.4332
+  141.5984
+  143.2309
+  143.1438
+  142.7125
+  141.7314
+  141.1721
+  134.5491
+  129.2982
+  223.6453
+  223.3177
+  222.3914
+  219.2762
+  217.2505
+  214.0229
+  209.0746
+  170.9890
+  272.0474
+  271.9905
+  271.3619
+  270.7024
+  268.2286
+  202.0912
+  202.0514
+  201.8508
+  201.7369
+  201.5976
+  198.5053
+  146.2922
+  145.6584
+  144.5480
+  142.9069
+  134.4882
+  130.4147
+  130.1356
+  129.9772
+  129.7834
+  129.5292
+  128.6773
+  118.6574
+  152.2243
+  315.1717
+   27.7027
+   29.4181
+   33.5637
+  105.1569
+  104.3779
+   95.2152
+   86.9314
+   68.3037
+   67.6804
+   66.7811
+   65.7734
+   63.7132
+   60.1834
+   55.8342
+   21.1885
+   22.7331
+   25.6326
+   60.9270
+   12.2710
+   12.6770
+   13.0212
+   13.4489
+   18.5130
+   30.7364
+  134.8591
+  169.5820
+  163.6575
+  206.2391
+  196.7928
+  225.1424
+  223.7404
+  221.7711
+  271.1906
+  270.7665
+  262.9112
+  258.7325
+  281.1111
+  280.7874
+  279.1151
+  278.0676
+  274.9603
+  186.1589
+  186.0857
+  185.8616
+  185.2283
+  184.8911
+  181.8274
+  177.4069
+  228.1210
+  226.6510
+  224.0753
+  119.9375
+  120.0797
+  120.1471
+  120.7000
+  122.0593
+  128.8156
+  100.6382
+  100.6380
+  100.6377
+  100.6373
+  100.6368
+  100.6306
+  100.6171
+  100.6070
+   86.6276
+   85.9292
+   82.7242
+   81.9858
+   81.8810
+   81.6578
+   81.3831
+   81.1501
+   80.8606
+   80.4591
+   90.9054
+   91.2124
+   91.7023
+   95.1775
+  102.7928
+   95.9642
+   73.3556
+   55.7654
+   67.5001
+   52.5007
+   36.2431
+   62.3446
+   12.6752
+   13.7033
+   16.6735
+   18.8979
+   31.4363
+  175.5009
+  173.6796
+  158.0918
+  141.2521
+  112.3998
+   51.6608
+  178.2147
+  175.5386
+  163.8395
+  148.3097
+   56.3367
+  200.0268
+  198.4206
+  208.2848
+  207.1010
+  200.4815
+  196.5673
+  189.3205
+  202.3671
+  202.0220
+  199.1903
+  222.1536
+  220.6047
+  279.4341
+  278.6432
+  278.1941
+  276.9243
+  274.5097
+  272.6537
+  265.4520
+  258.6684
+  246.1088
+  290.6383
+  290.1368
+  289.5336
+  283.3321
+  280.4568
+  268.8519
+  159.8817
+  159.7006
+  159.4563
+  158.1795
+  154.9308
+  199.3905
+  110.7331
+  110.6619
+  110.6081
+  109.3903
+  108.9110
+   98.0980
+   98.0551
+   97.3691
+   97.0747
+   96.7090
+   95.4978
+   95.2378
+   94.6727
+   95.4394
+   95.0143
+   94.8260
+   94.5790
+   94.2098
+   90.6459
+   89.6617
+   50.5909
+   50.5501
+   50.0222
+   49.0083
+   48.2490
+  102.8333
+  101.6658
+   65.9019
+   65.8542
+   52.3736
+   19.3292
+   19.4327
+   19.5594
+   20.2825
+   20.7106
+   23.9361
+   26.8327
+   42.9011
+   11.2917
+   11.4208
+   11.5787
+   11.7857
+   12.0951
+   12.4796
+   13.0129
+   28.0196
+  153.1473
+  152.4215
+  140.8902
+  140.4662
+  135.2880
+  132.4071
+  127.0732
+  134.2740
+  132.4979
+  124.6262
+  117.0120
+  133.6896
+  133.4905
+  133.1930
+  132.8233
+  131.5431
+  128.4461
+  124.9757
+  201.6402
+  201.3114
+  202.9993
+  202.4497
+  201.5568
+  200.7998
+  199.8592
+  225.4927
+  225.0663
+  224.7377
+  224.3357
+  228.4012
+  227.4081
+  218.8129
+  216.0624
+  209.3005
+  239.5737
+  239.4752
+  238.6916
+  233.7401
+  231.4443
+  128.8495
+  128.9836
+  130.5546
+  131.9828
+  133.1938
+  134.6985
+  152.5153
+  166.6410
+   88.9125
+   89.9113
+   91.5894
+   92.5461
+  112.8556
+   52.0538
+   55.2820
+   45.0218
+   45.0617
+   45.0806
+   45.1037
+   45.1793
+   45.3137
+   45.4306
+   45.9023
+  105.0630
+  110.2350
+  114.7356
+  122.7335
+  140.7676
+   25.8818
+   28.1271
+   28.9472
+   32.1294
+
+</pre>
+<img vspace="5" hspace="5" src="PartF_GA_01.png" alt=""> <p class="footer">
+<br>
+<a href="https://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2024a</a>
+<br>
+</p>
+</div>
+<!--
+##### SOURCE BEGIN #####
+Data = readtable("airfoilSelfNoise/airfoil_self_noise.dat");
+
+TF = ismissing(Data);
+
+cv = cvpartition(size(Data, 1), 'HoldOut',0.3);
+i = cv.test;
+
+DataTrain = Data(~i,:);
+DataTest = Data(i,:);
+
+Output = DataTrain.Var6;
+Input = table(DataTrain.Var1,DataTrain.Var2,DataTrain.Var3,DataTrain.Var4,DataTrain.Var5);
+
+fis = genfis(Input{:,:},Output)
+
+rng('default')
+
+[in, out, rule] = getTunableSettings(fis);
+opt = tunefisOptions; % Default values = (GA);
+opt.UseParallel = true;
+opt.KFoldValue = 2;
+opt.ValidationWindowSize = 2;
+opt.ValidationTolerance = 0.02;
+opt.MethodOptions.MaxGenerations = 200;
+
+fisOut = tunefis(fis, [in;out], Input{:,:}, Output, opt);
+
+TestInput = table(DataTest.Var1,DataTest.Var2,DataTest.Var3,DataTest.Var4,DataTest.Var5);
+TestOutput = DataTest.Var6;
+
+TunedOut = evalfis(fisOut, TestInput{:,:})
+
+fig1 = figure(1);
+plot([TestOutput, TunedOut])
+legend("Expected output", "Tuned Output")
+##### SOURCE END #####
+-->
+</body>
+</html>
